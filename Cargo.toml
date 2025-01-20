@@ -1,0 +1,60 @@
+[package]
+name = "aoc2024"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "problem1"
+path = "src/problem1.rs"
+
+[[bin]]
+name = "problem3"
+path = "src/problem3.rs"
+
+[[bin]]
+name = "problem4"
+path = "src/problem4.rs"
+
+[[bin]]
+name = "problem5"
+path = "src/problem5.rs"
+
+[[bin]]
+name = "problem6"
+path = "src/problem6.rs"
+
+[[bin]]
+name = "problem7"
+path = "src/problem7.rs"
+
+[[bin]]
+name = "problem8"
+path = "src/problem8.rs"
+
+[[bin]]
+name = "problem9"
+path = "src/problem9.rs"
+
+[[bin]]
+name = "problem10"
+path = "src/problem10.rs"
+
+[[bin]]
+name = "problem11"
+path = "src/problem11.rs"
+
+[[bin]]
+name = "problem12"
+path = "src/problem12.rs"
+
+[[bin]]
+name = "problem13"
+path = "src/problem13.rs"
+
+[[bin]]
+name = "problem14"
+path = "src/problem14.rs"
+
+
+[dependencies]
+aoc-toolkit = { git = "https://github.com/ubresoft/aoc-toolkit.git", version = "0.1.3" }
