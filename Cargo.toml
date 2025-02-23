@@ -55,6 +55,9 @@ path = "src/problem13.rs"
 name = "problem14"
 path = "src/problem14.rs"
 
+[[bin]]
+name = "problem16"
+path = "src/problem16.rs"
 
 [dependencies]
 aoc-toolkit = { git = "https://github.com/ubresoft/aoc-toolkit.git", version = "0.1.3" }

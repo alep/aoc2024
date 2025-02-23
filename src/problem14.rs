@@ -175,7 +175,7 @@ fn parse(content: &str) -> Vec<Robot> {
 
         let idx = line.find("v=").expect("Missing pattern.");
         let b: Vec<isize> = line[idx + "v=".len()..]
-            .split(",")
+                    .split(",")
             .map(|s| s.parse::<isize>().expect("number"))
             .collect();
 
