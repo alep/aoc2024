@@ -23,6 +23,7 @@ enum CellType {
     Down,
     Left,
     Right,
+    O,
 }
 
 impl Display for CellType {
@@ -36,6 +37,7 @@ impl Display for CellType {
             CellType::Down => 'V',
             CellType::Left => '<',
             CellType::Right => '>',
+            CellType::O => 'O',
         };
         write!(f, "{c}")
     }
@@ -52,6 +54,7 @@ impl From<char> for CellType {
             'V' => CellType::Down,
             '<' => CellType::Left,
             '>' => CellType::Right,
+            'O' => CellType::O,
             _ => panic!("Unknown char."),
         }
     }
@@ -70,8 +73,11 @@ pub fn main() {
     let contents = fs::read_to_string(filepath).expect("there should of been a file.");
 
     let mut g = grid(&contents);
-    print(&g);
-    let (distance, prev) = dijkstra(&g);
+    let (distance, prev) = all_path_dijkstra(&g);
+
+    let mut places: HashSet<Vec2> = HashSet::new();
+
+    println!("Number: {}", places.len());
 
     let (_reindeer, start) = g
         .find(|c, _v| match c {
@@ -100,15 +106,52 @@ pub fn main() {
             None => {}
         }
     }
-    println!(">>>>> finish: {:?}, {:?}", finish, m);
-    path(
-        &mut g,
-        (start, Direction::Right),
-        finish.unwrap(),
-        distance,
-        prev,
-    );
+
+    let last = finish.clone().unwrap();
+
+    let mut stack: VecDeque<(Vec2, Direction)> = VecDeque::new();
+    stack.push_back(last);
+
+    let mut visited: HashSet<(Vec2, Direction)> = HashSet::new();
+    let mut counts: HashSet<Vec2> = HashSet::new();
+    loop {
+        if stack.is_empty() {
+            break;
+        }
+
+        let item = stack
+            .pop_back()
+            .expect("There should be an element, as we check the stack before");
+
+        visited.insert(item.clone());
+        counts.insert(item.0);
+
+        println!("item: {:?}", item);
+        match prev.get(&item) {
+            Some(set) => {
+                for elem in set {
+                    if visited.get(&elem).is_none() {
+                        stack.push_back(elem.clone());
+                    }
+                }
+            }
+            None => {
+                println!("none");
+            }
+        }
+
+        let _ = g.set(&item.0, CellType::O);
+    }
+
     print(&g);
+    println!("Result, part 1: {:?} part 2: {:?}", m, counts.len());
+    //    path(
+    //        &mut g,
+    //        (start, Direction::Right),
+    //        finish.unwrap(),
+    //        distance,
+    //        prev,
+    //    );
 }
 
 fn grid(contents: &str) -> Grid<CellType> {
@@ -202,6 +245,124 @@ fn dijkstra(
 
     (distance, prev)
 }
+
+fn all_path_dijkstra(
+    grid: &Grid<CellType>,
+) -> (
+    HashMap<(Vec2, Direction), usize>,
+    HashMap<(Vec2, Direction), HashSet<(Vec2, Direction)>>,
+) {
+    let (_reindeer, start) = grid
+        .find(|c, _v| match c {
+            CellType::Reindeer => true,
+            _ => false,
+        })
+        .unwrap();
+
+    let mut distance: HashMap<(Vec2, Direction), usize> = HashMap::new();
+    let mut prev: HashMap<(Vec2, Direction), HashSet<(Vec2, Direction)>> = HashMap::new();
+    let mut queue: VecDeque<(Vec2, Direction, usize)> = VecDeque::new();
+
+    distance.insert((start, Direction::Right), 0);
+    prev.insert(
+        (start, Direction::Right),
+        HashSet::from([(start, Direction::Right)]),
+    );
+    queue.push_back((start, Direction::Right, 0));
+
+    loop {
+        if queue.is_empty() {
+            break;
+        }
+
+        let u = {
+            let mut min_value = usize::MAX;
+            let mut curr_cell: Option<(Vec2, Direction, usize)> = None;
+            let mut last_index: Option<usize> = None;
+            for (index, cell_vec) in queue.iter().enumerate() {
+                let d = *distance
+                    .get(&(cell_vec.0, cell_vec.1.clone()))
+                    .unwrap_or(&usize::MAX);
+                if d <= min_value {
+                    min_value = d;
+                    curr_cell = Some(cell_vec.clone());
+                    last_index = Some(index);
+                }
+            }
+            queue.remove(last_index.unwrap());
+
+            curr_cell.unwrap()
+        };
+
+        if *distance.get(&(u.0, u.1.clone())).unwrap_or(&usize::MAX) < u.2 {
+            continue;
+        }
+
+        for dir in Direction::cardinal() {
+            let current_dir = u.1.clone();
+            if dir == current_dir {
+                continue;
+            }
+
+            let d = *distance.get(&(u.0, dir.clone())).unwrap_or(&usize::MAX);
+            if d > u.2 + 1000 {
+                distance.insert((u.0, dir.clone()), u.2 + 1000);
+                match prev.get_mut(&(u.0, dir.clone())) {
+                    Some(set) => set.insert((u.0, current_dir.clone())),
+                    None => prev
+                        .insert(
+                            (u.0, dir.clone()),
+                            HashSet::from([(u.0, current_dir.clone())]),
+                        )
+                        .is_some(),
+                };
+                queue.push_back((u.0, dir.clone(), u.2 + 1000));
+            }
+        }
+
+        let delta_vector = Direction::delta(&u.1);
+        let vec2 = u.0 + delta_vector;
+
+        match grid.get(&vec2) {
+            Some(CellType::Empty) => {
+                let alt = u.2 + 1;
+                let cur = *distance.get(&(vec2, u.1.clone())).unwrap_or(&usize::MAX);
+
+                if alt < cur {
+                    // if you find something smaller, you have to replace the prev set.
+                    // Since now all those that were equal don't belong here
+                    distance.insert((vec2, u.1.clone()), alt);
+
+                    prev.insert((vec2, u.1.clone()), HashSet::from([(u.0, u.1.clone())]));
+                    queue.push_back((vec2, u.1.clone(), alt));
+                } else if alt == cur {
+                    match prev.get_mut(&(vec2, u.1.clone())) {
+                        Some(set) => {
+                            set.insert((u.0, u.1.clone()));
+                        }
+                        None => {}
+                    };
+                }
+            }
+            Some(CellType::End) => {
+                let alt = u.2 + 1;
+                if alt < *distance.get(&(vec2, u.1.clone())).unwrap_or(&usize::MAX) {
+                    distance.insert((vec2, u.1.clone()), alt);
+                    match prev.get_mut(&(vec2, u.1.clone())) {
+                        Some(set) => set.insert((u.0, u.1.clone())),
+                        None => prev
+                            .insert((vec2, u.1.clone()), HashSet::from([(u.0, u.1.clone())]))
+                            .is_some(),
+                    };
+                }
+            }
+            _ => {}
+        }
+    }
+
+    (distance, prev)
+}
+
 fn path(
     g: &mut Grid<CellType>,
     start: (Vec2, Direction),
